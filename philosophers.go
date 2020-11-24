@@ -197,7 +197,7 @@ func main() {
 			} else {
 				hungryPhilosopher := findStarvingPhilosopher(Philos)
 				if hungryPhilosopher != nil && hungryPhilosopher.eating == false {
-					fmt.Printf("found starving historian %d, sending to see if his chopstics are available to pickup \n", hungryPhilosopher.id)
+					fmt.Printf("found starving philosopher %d, sending to see if his chopstics are available to pickup \n", hungryPhilosopher.id)
 					go hungryPhilosopher.sitInTable()
 				}
 				go philosopher.leaveTable()
