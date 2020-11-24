@@ -25,20 +25,20 @@ import (
  */
 
 type ChopS struct {
-	mu sync.Mutex
-	id int
+	mu 	    sync.Mutex
+	id          int
 	philosopher *Philo
 }
 
 type Philo struct {
-	id 				int
+	id 		int
 	leftCs, rightCs *ChopS
-	ate 			int
-	eating 		    bool
+	ate 		int
+	eating 		bool
 }
 
 type Host struct {
-	mu sync.Mutex
+	mu 		   sync.Mutex
 	dyningPhilosophers int
 }
 
@@ -163,9 +163,7 @@ func main() {
 		case philosopher := <-pickUpChopsticks:
 			go philosopher.getChopS(CSticks)
 		case philosopher := <-askTheHostToEat:
-		//	if philosopher.eating {
-				go philosopher.Eat()
-		//	}
+			go philosopher.Eat()
 		case philosopher := <-eatingChannel:
 			fmt.Printf("starting to eat %d \n", philosopher.id)
 			go philosopher.FinishEating()
