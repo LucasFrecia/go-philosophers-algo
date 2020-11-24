@@ -43,7 +43,7 @@ type Host struct {
 	dyningPhilosophers int
 }
 
-var hostChannel 		chan *Host
+// var hostChannel 		chan *Host
 var finishedEatingChannel 	chan *Philo
 var eatingChannel 		chan *Philo
 var leaveTableChannel 		chan *Philo
@@ -152,7 +152,7 @@ func main() {
 	var hostItem Host
 	CSticks := make([]*ChopS, 5)
 	Philos  := make([]*Philo, 5)
-	hostChannel = make(chan *Host, 1)
+	// hostChannel = make(chan *Host, 1)
 	finishedEatingChannel = make(chan *Philo)
 	eatingChannel = make(chan *Philo)
 	leaveTableChannel = make(chan *Philo)
