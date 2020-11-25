@@ -10,13 +10,13 @@ import (
 		1. There should be 5 philosophers sharing chopsticks, with one chopstick between each adjacent pair of philosophers.
 		2. Each philosopher should eat only 3 times
 		3. The philosophers pick up the chopsticks lowest-numbered first
-		4. In order to eat, a philosopher must get permission from a host which executes in its own goroutine.
-		5. The host allows no more than 2 philosophers to eat concurrently.
-		6. Each philosopher is numbered, 1 through 5.
-		7. When a philosopher starts eating (after it has obtained necessary locks) it prints “starting to eat <number>” on a line by itself,
+		4. 2 philosophers can eat concurrently.
+		5. Each philosopher is numbered, 1 through 5.
+		6. When a philosopher starts eating (after it has obtained necessary locks) it prints “starting to eat <number>” on a line by itself,
 		   where <number> is the number of the philosopher.
-		8. When a philosopher finishes eating (before it has released its locks) it prints “finishing eating <number>” on a line by itself,
+		7. When a philosopher finishes eating (before it has released its locks) it prints “finishing eating <number>” on a line by itself,
 		   where <number> is the number of the philosopher.
+
 		@author Lucas Frecia
 */
 
@@ -34,18 +34,13 @@ type Philo struct {
 	eating 		bool
 }
 
-type Host struct {
-	mu 		   sync.Mutex
-	dyningPhilosophers int
-}
-
-var finishedEatingChannel 	chan *Philo
-var eatingChannel 		chan *Philo
-var leaveTableChannel 		chan *Philo
-var pickUpChopsticks 		chan *Philo
-var askTheHostToEat 		chan *Philo
-var readyToEat 			chan *Philo
-var returnChopSticksChannel 	chan *Philo
+var finishedEatingChannel   chan *Philo
+var eatingChannel 	    chan *Philo
+var leaveTableChannel 	    chan *Philo
+var pickUpChopsticks 	    chan *Philo
+var askTheHostToEat 	    chan *Philo
+var readyToEat 		    chan *Philo
+var returnChopSticksChannel chan *Philo
 
 func (philo *Philo) getChopS(chopS []*ChopS) {
 	chopS[philo.id - 1].mu.Lock()
@@ -110,32 +105,22 @@ func (philo *Philo) leaveTable() {
 	leaveTableChannel <- philo
 }
 
-func (philo *Philo) tellHostDoneEating(host *Host) {
-	host.mu.Lock()
-	host.dyningPhilosophers = host.dyningPhilosophers - 1
-	host.mu.Unlock()
+func (philo *Philo) tellHostDoneEating() {
+	philo.mu.Lock()
+	philo.ate = philo.ate + 1
+	philo.mu.Unlock()
 	returnChopSticksChannel <- philo
 }
 
-func (philo *Philo) askHostForPermissiontoEat(host *Host) {
-	host.mu.Lock()
-	if philo.leftCs != nil && philo.rightCs != nil && host.dyningPhilosophers < 2 {
-			philo.mu.Lock()
-			philo.eating = true
-			philo.mu.Unlock()
-			host.dyningPhilosophers = host.dyningPhilosophers + 1
-			if host.dyningPhilosophers == 2 {
-				host.dyningPhilosophers = 2
-			}
-			askTheHostToEat <- philo
+func (philo *Philo) askHostForPermissiontoEat() {
+	if philo.leftCs != nil && philo.rightCs != nil  {
+		askTheHostToEat <- philo
 	} else {
 		returnChopSticksChannel <- philo
 	}
-	host.mu.Unlock()
 }
 
 func main() {
-	var hostItem Host
 	CSticks := make([]*ChopS, 5)
 	Philos  := make([]*Philo, 5)
 	finishedEatingChannel = make(chan *Philo)
@@ -152,8 +137,6 @@ func main() {
 		CSticks[i] = &ChopS{sync.Mutex{}, i + 1, nil }
 	}
 
-	hostItem = Host{sync.Mutex{}, 0 }
-
 	for  i := range Philos {
 		go Philos[i].sitInTable()
 	}
@@ -163,7 +146,7 @@ func main() {
 		case philosopher := <-pickUpChopsticks:
 			go philosopher.getChopS(CSticks)
 		case philosopher := <-readyToEat:
-			go philosopher.askHostForPermissiontoEat(&hostItem)
+			go philosopher.askHostForPermissiontoEat()
 		case philosopher := <-askTheHostToEat:
 			go philosopher.Eat()
 		case philosopher := <-eatingChannel:
@@ -171,22 +154,14 @@ func main() {
 			go philosopher.finishEating()
 		case philosopher := <-finishedEatingChannel:
 			fmt.Printf("finishing eating %d \n", philosopher.id)
-			philosopher.mu.Lock()
-			philosopher.ate = philosopher.ate + 1
-			philosopher.eating = false
-			philosopher.mu.Unlock()
-
-			go philosopher.tellHostDoneEating(&hostItem)
-
+			go philosopher.tellHostDoneEating()
 		case philosopher := <-returnChopSticksChannel:
 			if philosopher.rightCs != nil {
 				go philosopher.dropCS(philosopher.rightCs, "right")
 			}
-
 			if philosopher.leftCs != nil {
 				go philosopher.dropCS(philosopher.leftCs, "left")
 			}
-
 			if philosopher.ate < 3 {
 				go philosopher.sitInTable()
 			} else {
@@ -195,7 +170,6 @@ func main() {
 		case philosopher := <-leaveTableChannel:
 			fmt.Printf("philosopher %d left the table after eating %d times \n", philosopher.id, philosopher.ate)
 			philosophersSittingAtTable--
-
 			if philosophersSittingAtTable == 0 {
 				return
 			}
