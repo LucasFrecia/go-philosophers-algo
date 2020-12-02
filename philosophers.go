@@ -83,19 +83,23 @@ func (philo *Philo) dropCS(ch *ChopS, hand string) {
 	ch.mu.Unlock()
 }
 
-func (philo *Philo) eat(ch chan <- *Philo) {
-	fmt.Printf("starting to eat %d \n", philo.id)
+// Uncomment cases to wait while eating or thinking
+func bussyTImeOut() {
 	randomTimeout := rand.Intn(2) + 1
 	time.Sleep(time.Second * time.Duration(randomTimeout))
+}
+
+func (philo *Philo) eat(ch chan <- *Philo) {
+	// bussyTImeOut()
 	ch <- philo
 }
 
 func (philo *Philo) think(ch chan <- *Philo) {
+	// bussyTImeOut()
 	ch <- philo
 }
 
 func (philo *Philo) tellHostDoneEating(ch chan <- *Philo) {
-	fmt.Printf("finishing eating %d \n", philo.id)
 	philo.mu.Lock()
 	philo.ate = philo.ate + 1
 	philo.mu.Unlock()
@@ -112,10 +116,10 @@ func (philo *Philo) askHostForPermissiontoEat(chCanEat chan <- *Philo, chCannotE
 
 func (philo *Philo) dropChopSticks() {
 	if philo.rightCs != nil {
-		go philo.dropCS(philo.rightCs, "right")
+		philo.dropCS(philo.rightCs, "right")
 	}
 	if philo.leftCs != nil {
-		go philo.dropCS(philo.leftCs, "left")
+		philo.dropCS(philo.leftCs, "left")
 	}
 }
 
@@ -150,11 +154,13 @@ func main() {
 		case philosopher := <-askTheHostToEat:
 			go philosopher.eat(eatingChannel)
 		case philosopher := <-eatingChannel:
+			fmt.Printf("starting to eat %d \n", philosopher.id)
 			go philosopher.think(finishedEatingChannel)
 		case philosopher := <-finishedEatingChannel:
+			fmt.Printf("finishing eating %d \n", philosopher.id)
 			go philosopher.tellHostDoneEating(returnChopSticksChannel)
 		case philosopher := <-returnChopSticksChannel:
-			philosopher.dropChopSticks()
+			go philosopher.dropChopSticks()
 			if philosopher.ate < 3 {
 				go philosopher.think(pickUpChopsticks)
 			} else {
