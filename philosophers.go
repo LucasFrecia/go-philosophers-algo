@@ -83,25 +83,19 @@ func (philo *Philo) dropCS(ch *ChopS, hand string) {
 	ch.mu.Unlock()
 }
 
-func (philo *Philo) think(ch chan <- *Philo) {
-	randomTimeout := rand.Intn(3 - 1) + 1
+func (philo *Philo) eat(ch chan <- *Philo) {
+	fmt.Printf("starting to eat %d \n", philo.id)
+	randomTimeout := rand.Intn(2) + 1
 	time.Sleep(time.Second * time.Duration(randomTimeout))
 	ch <- philo
 }
 
-func (philo *Philo) Eat(ch chan <- *Philo) {
-	ch <- philo
-}
-
-func (philo *Philo) finishEating(ch chan <- *Philo) {
-	ch <- philo
-}
-
-func (philo *Philo) leaveTable(ch chan <- *Philo) {
+func (philo *Philo) think(ch chan <- *Philo) {
 	ch <- philo
 }
 
 func (philo *Philo) tellHostDoneEating(ch chan <- *Philo) {
+	fmt.Printf("finishing eating %d \n", philo.id)
 	philo.mu.Lock()
 	philo.ate = philo.ate + 1
 	philo.mu.Unlock()
@@ -113,6 +107,15 @@ func (philo *Philo) askHostForPermissiontoEat(chCanEat chan <- *Philo, chCannotE
 		chCanEat <- philo
 	} else {
 		chCannotEat <- philo
+	}
+}
+
+func (philo *Philo) dropChopSticks() {
+	if philo.rightCs != nil {
+		go philo.dropCS(philo.rightCs, "right")
+	}
+	if philo.leftCs != nil {
+		go philo.dropCS(philo.leftCs, "left")
 	}
 }
 
@@ -145,24 +148,17 @@ func main() {
 		case philosopher := <-readyToEat:
 			go philosopher.askHostForPermissiontoEat(askTheHostToEat, returnChopSticksChannel)
 		case philosopher := <-askTheHostToEat:
-			go philosopher.Eat(eatingChannel)
+			go philosopher.eat(eatingChannel)
 		case philosopher := <-eatingChannel:
-			fmt.Printf("starting to eat %d \n", philosopher.id)
-			go philosopher.finishEating(finishedEatingChannel)
+			go philosopher.think(finishedEatingChannel)
 		case philosopher := <-finishedEatingChannel:
-			fmt.Printf("finishing eating %d \n", philosopher.id)
 			go philosopher.tellHostDoneEating(returnChopSticksChannel)
 		case philosopher := <-returnChopSticksChannel:
-			if philosopher.rightCs != nil {
-				go philosopher.dropCS(philosopher.rightCs, "right")
-			}
-			if philosopher.leftCs != nil {
-				go philosopher.dropCS(philosopher.leftCs, "left")
-			}
+			philosopher.dropChopSticks()
 			if philosopher.ate < 3 {
 				go philosopher.think(pickUpChopsticks)
 			} else {
-				go philosopher.leaveTable(leaveTableChannel)
+				go philosopher.think(leaveTableChannel)
 			}
 		case philosopher := <-leaveTableChannel:
 			fmt.Printf("philosopher %d left the table after eating %d times \n", philosopher.id, philosopher.ate)
